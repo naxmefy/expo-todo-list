@@ -1,4 +1,5 @@
-import React, { useRef, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { useEffect, useRef, useState } from "react";
 import { FlatList, TextInput as RNTextInput, StyleSheet, View } from "react-native";
 import { Button, Checkbox, List, TextInput } from "react-native-paper";
 
@@ -7,16 +8,45 @@ interface Task {
     resolved: boolean;
 }
 
+const TASKS_STORAGE_KEY = "tasks";
+
 export default function TodoList() {
     const [tasks, setTasks] = useState<Task[]>([]);
     const [task, setTask] = useState<string>("");
-    const inputRef = useRef<RNTextInput>(null); // Create a ref for the TextInput
+    const inputRef = useRef<RNTextInput>(null);
+
+    // Load tasks from AsyncStorage when the component mounts
+    useEffect(() => {
+        const loadTasks = async () => {
+            try {
+                const storedTasks = await AsyncStorage.getItem(TASKS_STORAGE_KEY);
+                if (storedTasks) {
+                    setTasks(JSON.parse(storedTasks));
+                }
+            } catch (error) {
+                console.error("Failed to load tasks:", error);
+            }
+        };
+        loadTasks();
+    }, []);
+
+    // Save tasks to AsyncStorage whenever they change
+    useEffect(() => {
+        const saveTasks = async () => {
+            try {
+                await AsyncStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
+            } catch (error) {
+                console.error("Failed to save tasks:", error);
+            }
+        };
+        saveTasks();
+    }, [tasks]);
 
     const addTask = () => {
         if (task.trim()) {
             setTasks([...tasks, { text: task.trim(), resolved: false }]);
             setTask("");
-            inputRef.current?.focus(); // Keep focus on the TextInput
+            inputRef.current?.focus();
         }
     };
 
@@ -36,14 +66,14 @@ export default function TodoList() {
         <View style={styles.container}>
             <View style={styles.inputContainer}>
                 <TextInput
-                    ref={inputRef} // Attach the ref to the TextInput
+                    ref={inputRef}
                     style={styles.input}
                     placeholder="Enter your task here..."
                     value={task}
                     onChangeText={setTask}
                     onSubmitEditing={() => {
                         addTask();
-                        setTimeout(() => inputRef.current?.focus(), 0); // Ensure focus is retained after submission
+                        setTimeout(() => inputRef.current?.focus(), 0);
                     }}
                 />
                 <Button mode="contained" onPress={addTask}>
@@ -57,12 +87,12 @@ export default function TodoList() {
                     <List.Item
                         title={item.text}
                         titleStyle={item.resolved ? styles.resolvedText : undefined}
-                        onPress={() => toggleResolved(index)} // Toggle resolved when the text is pressed
+                        onPress={() => toggleResolved(index)}
                         left={() => (
                             <Checkbox
                                 status={item.resolved ? "checked" : "unchecked"}
-                                onPress={() => toggleResolved(index)} // Toggle resolved when the checkbox is pressed
-                                uncheckedColor="#FF0000" // Red color for unchecked state
+                                onPress={() => toggleResolved(index)}
+                                uncheckedColor="#FF0000"
                             />
                         )}
                         right={() => (
@@ -80,11 +110,6 @@ const styles = StyleSheet.create({
         flex: 1,
         padding: 16,
         backgroundColor: "#fff",
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: "bold",
-        marginBottom: 16,
     },
     inputContainer: {
         flexDirection: "row",
